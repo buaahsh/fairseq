@@ -98,6 +98,7 @@ def main(args, init_distributed=False):
             checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
 
         reload_dataset = ':' in getattr(args, 'data', '')
+        reload_dataset = reload_dataset or args.reload_dataset_per_epoch
         # sharded data: get train iterator for next epoch
         epoch_itr = trainer.get_train_iterator(epoch_itr.epoch, load_dataset=reload_dataset)
     train_meter.stop()
