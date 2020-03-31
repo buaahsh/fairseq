@@ -78,7 +78,7 @@ def load_indexed_dataset(path, dictionary, dataset_impl=None, combine=False, def
         )
         if dataset is None:
             break
-        print('| loaded {} examples from: {}'.format(len(dataset), path_k))
+        print('| loaded {} examples from: {}'.format(len(dataset), path_k), flush=True)
         datasets.append(dataset)
         if not combine:
             break
