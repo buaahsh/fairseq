@@ -132,6 +132,7 @@ class FairseqTask(object):
         # For default fairseq task, return same iterator across epochs
         # as datasets are not dynamic, can be overridden in task specific
         # setting.
+        print("| At task.get_batch_iterator ...", flush=True)
         if dataset in self.dataset_to_epoch_iter:
             return self.dataset_to_epoch_iter[dataset]
 
@@ -143,6 +144,7 @@ class FairseqTask(object):
         # get indices ordered by example size
         with data_utils.numpy_seed(seed):
             indices = dataset.ordered_indices()
+        print("| At task.get_batch_iterator, indices ordered ... ", flush=True)
 
         # filter examples that are too large
         if max_positions is not None:
@@ -155,6 +157,7 @@ class FairseqTask(object):
             indices, dataset.num_tokens, max_tokens=max_tokens, max_sentences=max_sentences,
             required_batch_size_multiple=required_batch_size_multiple,
         )
+        print("| At task.get_batch_iterator, batch_sampler created ... ", flush=True)
 
         # return a reusable, sharded iterator
         epoch_iter = iterators.EpochBatchIterator(
@@ -168,6 +171,7 @@ class FairseqTask(object):
             epoch=epoch,
         )
         self.dataset_to_epoch_iter[dataset] = epoch_iter
+        print("| At task.get_batch_iterator, iterator created ... ", flush=True)
         return epoch_iter
 
     def build_model(self, args):
