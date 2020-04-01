@@ -108,6 +108,7 @@ def main(args, init_distributed=False):
 def train(args, trainer, task, epoch_itr):
     """Train the model for one epoch."""
     # Update parameters every N batches
+    print("| Start train.train ..." , flush=True)
     update_freq = args.update_freq[epoch_itr.epoch - 1] \
         if epoch_itr.epoch <= len(args.update_freq) else args.update_freq[-1]
 
@@ -116,10 +117,12 @@ def train(args, trainer, task, epoch_itr):
         fix_batches_to_gpus=args.fix_batches_to_gpus,
         shuffle=(epoch_itr.epoch >= args.curriculum),
     )
+    print("| Itr init (1) ...", flush=True)
     itr = iterators.GroupedIterator(itr, update_freq)
     progress = progress_bar.build_progress_bar(
         args, itr, epoch_itr.epoch, no_progress_bar='simple',
     )
+    print("| Itr init (2) ...", flush=True)
 
     extra_meters = collections.defaultdict(lambda: AverageMeter())
     valid_subsets = args.valid_subset.split(',')
