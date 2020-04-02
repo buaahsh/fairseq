@@ -151,6 +151,7 @@ class FairseqTask(object):
             indices = data_utils.filter_by_size(
                 indices, dataset, max_positions, raise_exception=(not ignore_invalid_inputs),
             )
+        print("| At task.get_batch_iterator, examples filtered ... ", flush=True)
 
         # create mini-batches with given size constraints
         batch_sampler = data_utils.batch_by_size(
