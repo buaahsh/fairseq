@@ -347,6 +347,7 @@ class Trainer(object):
                     self._log_oom(e)
                     if raise_oom:
                         raise e
+                    print("| WARNING OOM!", flush=True)
                     print(
                         "| WARNING: attempting to recover from OOM in forward/backward pass",
                         file=sys.stderr,
