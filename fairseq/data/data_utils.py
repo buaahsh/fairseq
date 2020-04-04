@@ -254,14 +254,15 @@ def batch_by_size(
     indices, num_tokens_fn, max_tokens=None, max_sentences=None,
     required_batch_size_multiple=1,
 ):
-    print("| At batch_by_size ... ")
+    print("| At batch_by_size ... ", flush=True)
     max_tokens = max_tokens if max_tokens is not None else -1
     max_sentences = max_sentences if max_sentences is not None else -1
     bsz_mult = required_batch_size_multiple
 
     if isinstance(indices, types.GeneratorType):
         indices = np.fromiter(indices, dtype=np.int64, count=-1)
-    print("| At batch_by_size, fromiter finish ")
+    print("| At batch_by_size, fromiter finish len(indices)=%d" % len(indices),
+        flush=True)
 
     sample_len = 0
     sample_lens = []
@@ -292,5 +293,5 @@ def batch_by_size(
         batch.append(idx)
     if len(batch) > 0:
         batches.append(batch)
-    print("| At batch_by_size, finish ... ")
+    print("| At batch_by_size, finish ... ", flush=True)
     return batches
