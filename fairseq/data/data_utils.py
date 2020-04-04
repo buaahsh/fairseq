@@ -194,7 +194,7 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False):
     return indices
 
 
-def batch_by_size(
+def batch_by_size_dep(
     indices, num_tokens_fn, max_tokens=None, max_sentences=None,
     required_batch_size_multiple=1,
 ):
@@ -239,3 +239,58 @@ def process_bpe_symbol(sentence: str, bpe_symbol: str):
     elif bpe_symbol is not None:
         sentence = (sentence + ' ').replace(bpe_symbol, '').rstrip()
     return sentence
+
+
+def _is_batch_full(batch, num_tokens, max_tokens, max_sentences):
+    if len(batch) == 0:
+        return 0
+    if max_sentences > 0 and len(batch) == max_sentences:
+        return 1
+    if max_tokens > 0 and num_tokens > max_tokens:
+        return 1
+    return 0
+
+def batch_by_size(
+    indices, num_tokens_fn, max_tokens=None, max_sentences=None,
+    required_batch_size_multiple=1,
+):
+    print("| At batch_by_size ... ")
+    max_tokens = max_tokens if max_tokens is not None else -1
+    max_sentences = max_sentences if max_sentences is not None else -1
+    bsz_mult = required_batch_size_multiple
+
+    if isinstance(indices, types.GeneratorType):
+        indices = np.fromiter(indices, dtype=np.int64, count=-1)
+    print("| At batch_by_size, fromiter finish ")
+
+    sample_len = 0
+    sample_lens = []
+    batch = []
+    batches = []
+
+    for i in range(len(indices)):
+        idx = indices[i]
+        num_tokens = num_tokens_fn(idx)
+        sample_lens.append(num_tokens)
+        sample_len = max(sample_len, num_tokens)
+
+        assert max_tokens <= 0 or sample_len <= max_tokens, (
+            "sentence at index {} of size {} exceeds max_tokens "
+            "limit of {}!".format(idx, sample_len, max_tokens)
+        )
+        num_tokens = (len(batch) + 1) * sample_len
+
+        if _is_batch_full(batch, num_tokens, max_tokens, max_sentences):
+            mod_len = max(
+                bsz_mult * (len(batch) // bsz_mult),
+                len(batch) % bsz_mult,
+            )
+            batches.append(batch[:mod_len])
+            batch = batch[mod_len:]
+            sample_lens = sample_lens[mod_len:]
+            sample_len = max(sample_lens) if len(sample_lens) > 0 else 0
+        batch.append(idx)
+    if len(batch) > 0:
+        batches.append(batch)
+    print("| At batch_by_size, finish ... ")
+    return batches
