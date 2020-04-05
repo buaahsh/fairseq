@@ -293,7 +293,7 @@ def batch_by_size(
             )
             batches.append(batch[:mod_len])
             batch = batch[mod_len:]
-            if max_tokens == -1:
+            if max_tokens != -1:
                 sample_lens = sample_lens[mod_len:]
                 sample_len = max(sample_lens) if len(sample_lens) > 0 else 0
         batch.append(idx)
