@@ -269,6 +269,17 @@ def batch_by_size(
     batch = []
     batches = []
 
+    i = 0
+    while i < len(indices):
+        batch = []
+        for j in range(i, min(len(indices), i + max_sentences)):
+            batch.append(indices[j])
+        batches.append(batch)
+        i += max_sentences
+    print("| At batch_by_size, finish ... ", flush=True)
+    return batches
+
+
     for i in range(len(indices)):
         idx = indices[i]
 
