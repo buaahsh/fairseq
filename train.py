@@ -127,6 +127,20 @@ def train(args, trainer, task, epoch_itr):
     extra_meters = collections.defaultdict(lambda: AverageMeter())
     valid_subsets = args.valid_subset.split(',')
     max_update = args.max_update or math.inf
+    
+    # ##################### DEBUG #####################
+    
+    # debug_samples = []
+    # print("Fetch debug examples ...")
+    # for i in range(1000):
+    #     debug_samples.append(next(itr))
+    
+    # progress = progress_bar.build_progress_bar(
+    #     args, iter(debug_samples), epoch_itr.epoch, no_progress_bar='simple',
+    # )
+
+    # ##################### DEBUG #####################
+
     for i, samples in enumerate(progress, start=epoch_itr.iterations_in_epoch):
         log_output = trainer.train_step(samples)
         if log_output is None:
