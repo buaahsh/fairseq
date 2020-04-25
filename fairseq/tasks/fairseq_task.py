@@ -231,6 +231,9 @@ class FairseqTask(object):
                 match_source_len=getattr(args, 'match_source_len', False),
                 no_repeat_ngram_size=getattr(args, 'no_repeat_ngram_size', 0),
             )
+    
+    def prepare_train(self, model=None, criterion=None):
+        pass
 
     def train_step(self, sample, model, criterion, optimizer, ignore_grad=False):
         """
