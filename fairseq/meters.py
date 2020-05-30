@@ -21,6 +21,7 @@ class AverageMeter(object):
         self.val = val
         self.sum += val * n
         self.count += n
+        if self.count <= 0: self.count = 1
         self.avg = self.sum / self.count
 
 
