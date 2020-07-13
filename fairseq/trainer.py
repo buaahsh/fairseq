@@ -267,6 +267,7 @@ class Trainer(object):
                 combine=combine,
                 data_selector=data_selector,
             )
+        print("| Max positions: " + str((self.task.max_positions(), self.model.max_positions())))
         return self.task.get_batch_iterator(
             dataset=self.task.dataset(self.args.train_subset),
             max_tokens=self.args.max_tokens,
