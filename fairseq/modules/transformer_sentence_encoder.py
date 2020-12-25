@@ -96,6 +96,7 @@ class TransformerSentenceEncoder(nn.Module):
         n_trans_layers_to_freeze: int = 0,
         export: bool = False,
         traceable: bool = False,
+        rel_pos_bins: int = 0,
     ) -> None:
 
         super().__init__()
@@ -156,6 +157,10 @@ class TransformerSentenceEncoder(nn.Module):
         else:
             self.emb_layer_norm = None
 
+        self.rel_pos_bins = rel_pos_bins
+        if self.rel_pos_bins > 0:
+            self.rel_pos_bias = nn.Linear(rel_pos_bins, num_attention_heads, bias=False)
+
         # Apply initialization of model params after building the model
         if self.apply_bert_init:
             self.apply(init_bert_params)
@@ -170,6 +175,8 @@ class TransformerSentenceEncoder(nn.Module):
             freeze_module_params(self.segment_embeddings)
             freeze_module_params(self.embed_positions)
             freeze_module_params(self.emb_layer_norm)
+            if self.rel_pos_bins > 0:
+                freeze_module_params(self.rel_pos_bins)
 
         for layer in range(n_trans_layers_to_freeze):
             freeze_module_params(self.layers[layer])
@@ -213,6 +220,27 @@ class TransformerSentenceEncoder(nn.Module):
         inner_states = []
         if not last_state_only:
             inner_states.append(x)
+
+        rel_pos = None
+        if self.rel_pos_bins > 0:
+            position_ids = torch.arange(self.max_seq_len, dtype=torch.long)
+            position_ids = position_ids.unsqueeze(0).expand(x.size())
+            rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
+            rel_pos_mat = rel_pos_mat.type_as(x)
+            min_distance = rel_pos_mat.min()
+            max_distance = rel_pos_mat.max()
+            all_distance = torch.arange(
+                start=min_distance, end=max_distance + 1, dtype=rel_pos_mat.dtype, device=rel_pos_mat.device)
+            rel_pos_ids = relative_position_bucket(
+                all_distance, num_buckets=rel_pos_bins, max_distance=max_rel_pos)
+            rel_pos_one_hot = F.one_hot(rel_pos_ids, num_classes=rel_pos_bins).float()
+            rel_pos_embedding = torch.mm(rel_pos_bias.weight, rel_pos_one_hot.transpose(-1, -2))
+            rel_pos_embedding = rel_pos_embedding.unsqueeze(0).unsqueeze(-2)
+            batch_size, seq_len, _ = rel_pos_mat.size()
+            rel_pos_embedding = rel_pos_embedding.expand(batch_size, -1, seq_len, -1)
+            num_attention_head = rel_pos_embedding.size()[1]
+            rel_pos_mat = (rel_pos_mat - min_distance).unsqueeze(1).expand(-1, num_attention_head, -1, -1)
+            rel_pos = torch.gather(rel_pos_embedding, dim=-1, index=rel_pos_mat)
 
         for layer in self.layers:
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)

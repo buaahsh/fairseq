@@ -83,7 +83,8 @@ class RobertaModel(FairseqLanguageModel):
                             help='LayerDrop probability for encoder')
         parser.add_argument('--encoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
-
+        parser.add_argument('--rel_pos_bins', type=int,
+                            help='number of relative position bins')
     @classmethod
     def build_model(cls, args, task):
         """Build a new model instance."""
@@ -324,6 +325,7 @@ class RobertaEncoder(FairseqDecoder):
             encoder_normalize_before=True,
             apply_bert_init=True,
             activation_fn=args.activation_fn,
+            rel_pos_bins=args.rel_pos_bins,
         )
         self.lm_head = RobertaLMHead(
             embed_dim=args.encoder_embed_dim,

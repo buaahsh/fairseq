@@ -95,6 +95,7 @@ class MultiheadAttention(nn.Module):
         attn_mask=None,
         before_softmax=False,
         need_head_weights=False,
+        rel_pos=None,
     ):
         """Input shape: Time x Batch x Channel
 
@@ -252,6 +253,9 @@ class MultiheadAttention(nn.Module):
 
         if before_softmax:
             return attn_weights, v
+
+        if rel_pos is not None:
+            attn_weights = attn_weights + rel_pos
 
         attn_weights_float = utils.softmax(attn_weights, dim=-1, onnx_trace=self.onnx_trace)
         attn_weights = attn_weights_float.type_as(attn_weights)
