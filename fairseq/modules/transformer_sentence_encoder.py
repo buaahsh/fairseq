@@ -15,6 +15,38 @@ from fairseq.modules import (
     TransformerSentenceEncoderLayer,
 )
 import random
+import math
+
+
+def relative_position_bucket(relative_position, bidirectional=True, num_buckets=32, max_distance=128):
+    """
+    Adapted from Mesh Tensorflow:
+    https://github.com/tensorflow/mesh/blob/0cb87fe07da627bf0b7e60475d59f95ed6b5be3d/mesh_tensorflow/transformer/transformer_layers.py#L593
+    """
+    ret = 0
+    if bidirectional:
+        num_buckets //= 2
+        # mtf.to_int32(mtf.less(n, 0)) * num_buckets
+        ret += (relative_position > 0).long() * num_buckets
+        n = torch.abs(relative_position)
+    else:
+        n = torch.max(-relative_position, torch.zeros_like(relative_position))
+    # now n is in the range [0, inf)
+
+    # half of the buckets are for exact increments in positions
+    max_exact = num_buckets // 2
+    is_small = n < max_exact
+
+    # The other half of the buckets are for logarithmically bigger bins in positions up to max_distance
+    val_if_large = max_exact + (
+        torch.log(n.float() / max_exact) / math.log(max_distance /
+                                                    max_exact) * (num_buckets - max_exact)
+    ).to(torch.long)
+    val_if_large = torch.min(
+        val_if_large, torch.full_like(val_if_large, num_buckets - 1))
+
+    ret += torch.where(is_small, n, val_if_large)
+    return ret
 
 
 def init_bert_params(module):
@@ -223,18 +255,19 @@ class TransformerSentenceEncoder(nn.Module):
 
         rel_pos = None
         if self.rel_pos_bins > 0:
-            position_ids = torch.arange(self.max_seq_len, dtype=torch.long)
-            position_ids = position_ids.unsqueeze(0).expand(x.size())
+            max_rel_pos = 128
+            position_ids = torch.arange(tokens.size(1), dtype=torch.long)
+            position_ids = position_ids.unsqueeze(0).expand(tokens.size())
             rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
-            rel_pos_mat = rel_pos_mat.type_as(x)
+            rel_pos_mat = rel_pos_mat.type_as(tokens)
             min_distance = rel_pos_mat.min()
             max_distance = rel_pos_mat.max()
             all_distance = torch.arange(
                 start=min_distance, end=max_distance + 1, dtype=rel_pos_mat.dtype, device=rel_pos_mat.device)
             rel_pos_ids = relative_position_bucket(
-                all_distance, num_buckets=rel_pos_bins, max_distance=max_rel_pos)
-            rel_pos_one_hot = F.one_hot(rel_pos_ids, num_classes=rel_pos_bins).float()
-            rel_pos_embedding = torch.mm(rel_pos_bias.weight, rel_pos_one_hot.transpose(-1, -2))
+                all_distance, num_buckets=self.rel_pos_bins, max_distance=max_rel_pos)
+            rel_pos_one_hot = F.one_hot(rel_pos_ids, num_classes=self.rel_pos_bins).type_as(x)
+            rel_pos_embedding = torch.mm(self.rel_pos_bias.weight, rel_pos_one_hot.transpose(-1, -2))
             rel_pos_embedding = rel_pos_embedding.unsqueeze(0).unsqueeze(-2)
             batch_size, seq_len, _ = rel_pos_mat.size()
             rel_pos_embedding = rel_pos_embedding.expand(batch_size, -1, seq_len, -1)
