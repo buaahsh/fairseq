@@ -279,7 +279,7 @@ class TransformerSentenceEncoder(nn.Module):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
             if not self.training or (dropout_probability > self.layerdrop):
-                x, _ = layer(x, self_attn_padding_mask=padding_mask)
+                x, _ = layer(x, self_attn_padding_mask=padding_mask, rel_pos=rel_pos)
                 if not last_state_only:
                     inner_states.append(x)
 
