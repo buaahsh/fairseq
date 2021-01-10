@@ -129,6 +129,8 @@ class TransformerSentenceEncoder(nn.Module):
         export: bool = False,
         traceable: bool = False,
         rel_pos_bins: int = 0,
+        max_rel_pos: int = 0,
+        ada_rel_pos_num: int = 1,
     ) -> None:
 
         super().__init__()
@@ -190,7 +192,14 @@ class TransformerSentenceEncoder(nn.Module):
             self.emb_layer_norm = None
 
         self.rel_pos_bins = rel_pos_bins
-        if self.rel_pos_bins > 0:
+        self.max_rel_pos = max_rel_pos
+        self.ada_rel_pos_num = ada_rel_pos_num
+        
+        if self.ada_rel_pos_num > 1 and self.rel_pos_bins > 0:
+            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(adap_rel_pos_num)]
+            self.ada_rel_pos_nn = nn.Linear(self.embedding_dim, self.ada_rel_pos_num)
+        
+        if self.ada_rel_pos_num <= 1 and self.rel_pos_bins > 0:
             self.rel_pos_bias = nn.Linear(rel_pos_bins, num_attention_heads, bias=False)
 
         # Apply initialization of model params after building the model
@@ -255,7 +264,7 @@ class TransformerSentenceEncoder(nn.Module):
 
         rel_pos = None
         if self.rel_pos_bins > 0:
-            max_rel_pos = 128
+            max_rel_pos = self.max_rel_pos
             position_ids = torch.arange(tokens.size(1), dtype=torch.long)
             position_ids = position_ids.unsqueeze(0).expand(tokens.size())
             rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
@@ -267,10 +276,25 @@ class TransformerSentenceEncoder(nn.Module):
             rel_pos_ids = relative_position_bucket(
                 all_distance, num_buckets=self.rel_pos_bins, max_distance=max_rel_pos)
             rel_pos_one_hot = F.one_hot(rel_pos_ids, num_classes=self.rel_pos_bins).type_as(x)
-            rel_pos_embedding = torch.mm(self.rel_pos_bias.weight, rel_pos_one_hot.transpose(-1, -2))
-            rel_pos_embedding = rel_pos_embedding.unsqueeze(0).unsqueeze(-2)
-            batch_size, seq_len, _ = rel_pos_mat.size()
-            rel_pos_embedding = rel_pos_embedding.expand(batch_size, -1, seq_len, -1)
+
+            # adaptive rel pos
+            if self.ada_rel_pos_num > 1:
+                all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.adap_rel_pos_num)])
+                input_t = x.transpose(0, 1).max(dim=1)
+                input_rel_pos = self.ada_rel_pos_nn(input_t)
+                input_rel_pos_weight = torch.softmax(input_rel_pos, dim=1)
+                weight_sum_rel_pos_bins = torch.matmul(all_rel_pos_weight.permute(2, 1, 0),input_rel_pos_weight.transpose(1, 0))
+                weight_sum_rel_pos_embedding = torch.matmul(weight_sum_rel_pos_bins.permute(2, 1, 0), rel_pos_one_hot.transpose(-1, -2))
+                weight_sum_rel_pos_embedding = weight_sum_rel_pos_embedding.unsqueeze(-2)
+                batch_size, seq_len, _ = rel_pos_mat.size()
+                rel_pos_embedding = weight_sum_rel_pos_embedding.expand(-1, -1, seq_len, -1)
+            
+            # single rel pos
+            else:
+                rel_pos_embedding = torch.mm(self.rel_pos_bias.weight, rel_pos_one_hot.transpose(-1, -2))
+                rel_pos_embedding = rel_pos_embedding.unsqueeze(0).unsqueeze(-2)
+                batch_size, seq_len, _ = rel_pos_mat.size()
+                rel_pos_embedding = rel_pos_embedding.expand(batch_size, -1, seq_len, -1)
             num_attention_head = rel_pos_embedding.size()[1]
             rel_pos_mat = (rel_pos_mat - min_distance).unsqueeze(1).expand(-1, num_attention_head, -1, -1)
             rel_pos = torch.gather(rel_pos_embedding, dim=-1, index=rel_pos_mat)

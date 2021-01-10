@@ -85,6 +85,11 @@ class RobertaModel(FairseqLanguageModel):
                             help='which layers to *keep* when pruning as a comma-separated list')
         parser.add_argument('--rel_pos_bins', type=int,
                             help='number of relative position bins')
+        parser.add_argument('--max_rel_pos', type=int, default=128,
+                            help='number of maximum relative position bins')                
+        parser.add_argument('--ada_rel_pos_num', type=int, default=1,
+                            help='number of adaptive relative position, default is 1')
+
     @classmethod
     def build_model(cls, args, task):
         """Build a new model instance."""
@@ -326,6 +331,8 @@ class RobertaEncoder(FairseqDecoder):
             apply_bert_init=True,
             activation_fn=args.activation_fn,
             rel_pos_bins=args.rel_pos_bins,
+            max_rel_pos=args.max_rel_pos,
+            ada_rel_pos_num=args.ada_rel_pos_num,
         )
         self.lm_head = RobertaLMHead(
             embed_dim=args.encoder_embed_dim,
