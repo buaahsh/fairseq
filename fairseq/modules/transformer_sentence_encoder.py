@@ -196,7 +196,7 @@ class TransformerSentenceEncoder(nn.Module):
         self.ada_rel_pos_num = ada_rel_pos_num
         
         if self.ada_rel_pos_num > 1 and self.rel_pos_bins > 0:
-            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(adap_rel_pos_num)]
+            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(self.adap_rel_pos_num)]
             self.ada_rel_pos_nn = nn.Linear(self.embedding_dim, self.ada_rel_pos_num)
         
         if self.ada_rel_pos_num <= 1 and self.rel_pos_bins > 0:
@@ -279,12 +279,12 @@ class TransformerSentenceEncoder(nn.Module):
 
             # adaptive rel pos
             if self.ada_rel_pos_num > 1:
-                all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.adap_rel_pos_num)])
-                input_t = x.transpose(0, 1).max(dim=1)
-                input_rel_pos = self.ada_rel_pos_nn(input_t)
+                all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.adap_rel_pos_num)]) # ada_num * att_num * bin, 5 * 12 * 32
+                input_t = x.transpose(0, 1).max(dim=1) # Batch * embedding_dim
+                input_rel_pos = self.ada_rel_pos_nn(input_t) # batch * ada_num
                 input_rel_pos_weight = torch.softmax(input_rel_pos, dim=1)
-                weight_sum_rel_pos_bins = torch.matmul(all_rel_pos_weight.permute(2, 1, 0),input_rel_pos_weight.transpose(1, 0))
-                weight_sum_rel_pos_embedding = torch.matmul(weight_sum_rel_pos_bins.permute(2, 1, 0), rel_pos_one_hot.transpose(-1, -2))
+                weight_sum_rel_pos_bins = torch.matmul(all_rel_pos_weight.permute(2, 1, 0),input_rel_pos_weight.transpose(1, 0)) # bin * att_num * batch
+                weight_sum_rel_pos_embedding = torch.matmul(weight_sum_rel_pos_bins.permute(2, 1, 0), rel_pos_one_hot.transpose(-1, -2)) 
                 weight_sum_rel_pos_embedding = weight_sum_rel_pos_embedding.unsqueeze(-2)
                 batch_size, seq_len, _ = rel_pos_mat.size()
                 rel_pos_embedding = weight_sum_rel_pos_embedding.expand(-1, -1, seq_len, -1)
