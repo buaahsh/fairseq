@@ -196,7 +196,7 @@ class TransformerSentenceEncoder(nn.Module):
         self.ada_rel_pos_num = ada_rel_pos_num
         
         if self.ada_rel_pos_num > 1 and self.rel_pos_bins > 0:
-            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(self.adap_rel_pos_num)]
+            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(self.ada_rel_pos_num)]
             self.ada_rel_pos_nn = nn.Linear(self.embedding_dim, self.ada_rel_pos_num)
         
         if self.ada_rel_pos_num <= 1 and self.rel_pos_bins > 0:
@@ -279,7 +279,7 @@ class TransformerSentenceEncoder(nn.Module):
 
             # adaptive rel pos
             if self.ada_rel_pos_num > 1:
-                all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.adap_rel_pos_num)]) # ada_num * att_num * bin, 5 * 12 * 32
+                all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.ada_rel_pos_num)]) # ada_num * att_num * bin, 5 * 12 * 32
                 input_t = x.transpose(0, 1).max(dim=1) # Batch * embedding_dim
                 input_rel_pos = self.ada_rel_pos_nn(input_t) # batch * ada_num
                 input_rel_pos_weight = torch.softmax(input_rel_pos, dim=1)
