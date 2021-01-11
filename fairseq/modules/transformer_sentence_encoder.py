@@ -196,7 +196,7 @@ class TransformerSentenceEncoder(nn.Module):
         self.ada_rel_pos_num = ada_rel_pos_num
         
         if self.ada_rel_pos_num > 1 and self.rel_pos_bins > 0:
-            self.all_rel_pos_bias = [nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(self.ada_rel_pos_num)]
+            self.all_rel_pos_bias = nn.ModuleList([nn.Linear(rel_pos_bins, num_attention_heads, bias=False) for _ in range(self.ada_rel_pos_num)])
             self.ada_rel_pos_nn = nn.Linear(self.embedding_dim, self.ada_rel_pos_num)
         
         if self.ada_rel_pos_num <= 1 and self.rel_pos_bins > 0:
