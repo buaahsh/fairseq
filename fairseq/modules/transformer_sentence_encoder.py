@@ -280,7 +280,8 @@ class TransformerSentenceEncoder(nn.Module):
             # adaptive rel pos
             if self.ada_rel_pos_num > 1:
                 all_rel_pos_weight = torch.stack([self.all_rel_pos_bias[_].weight for _ in range(self.ada_rel_pos_num)]) # ada_num * att_num * bin, 5 * 12 * 32
-                input_t = torch.max(x.transpose(0, 1), dim=1)[0] # Batch * embedding_dim
+                # input_t = torch.max(x.transpose(0, 1), dim=1)[0] # Batch * embedding_dim
+                input_t = torch.mean(x.transpose(0, 1), dim=1) # Batch * embedding_dim, average embedding
                 input_rel_pos = self.ada_rel_pos_nn(input_t) # batch * ada_num
                 input_rel_pos_weight = torch.softmax(input_rel_pos, dim=1)
                 weight_sum_rel_pos_bins = torch.matmul(all_rel_pos_weight.permute(2, 1, 0),input_rel_pos_weight.transpose(1, 0)) # bin * att_num * batch
